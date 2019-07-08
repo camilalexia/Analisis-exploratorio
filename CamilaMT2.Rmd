@@ -1,0 +1,215 @@
+---
+title: "Camila_MaldonadoT2"
+author: "Camila Maldonado"
+date: "7 de julio de 2019"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+#**Trabajo Nº2: Análisis exploratorio de datos**#
+##Introducción
+En el presente trabajo se realizará una exploración de una base de datos, describiendo distribuciones univariadas, análisis de linealidad de las relaciones bivariadas y resumen de los datos mediante un análisis de componentes principales y de conglomerados. 
+La base de datos a usar será una de salud mental en estudiantes universitarios que incluye escalas que recogen indicadores de salud mental positiva y escalas indicadoras de síntomas de trastornos mentales. Se compone de 517 observaciones y de 7 variables (felicidad, prosperidad, bienestar social, depresión, ansiedad, uso problemático de alcohol, síntomas somáticos). Para la realización de este análisis se considerarán solo las variables de felicidad, bienestar social y prosperidad. 
+
+##Descripción de las variables
+La variable de felcidad se considera como bienestar hedónico y es medida a traves de la escala de Felicidad de Lima (ebfl.m); esta mide el sentido positivo de la vida, la satisfacción con la vida, la realización personal y la alegría de vivir y se compone de 27 items.
+La variable de prosperidad se considera como bienestar eudaimónico y es medida a través de la Escala de Prosperidad (Flourishing Scale, fs.m) la cual está compuesta por 8 ítems que incluyen aspectos del funcionamiento humano como son las relaciones positivas, el sentimiento de competencia y el tener un propósito en la vida. Se responde en una escala de 1 (Fuertemente en desacuerdo) a 7 (Fuertemente de acuerdo); y los puntajes oscilan entre 8 y 56 puntos, donde los más altos indican mayor presencia de buen funcionamiento en las áreas cubiertas.
+Por otro lado la variable de bienestar social es medida a través de las Escalas de Bienestar Social, donde se evalúan 5 dimensiones del bienestar social: Integración social (ebs.1.m), Aceptación social (ebs.2.m), Contribución social (ebs.3.m), Actualización social (ebs.4.m) y Coherencia social (ebs.5.m). El instrumento está compuesto por 33 ítems y se responde utilizando una escala de 5 puntos, donde 1 es Muy en Desacuerdo y 5 es Muy de Acuerdo. 
+
+##Resumen de los datos
+Para realizar un resumen rapido de los datos primero llamaremos las librerias que usaremos y la base de datos
+```{r}
+library(psych)
+library(readxl)
+library(tibble)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(cluster)
+library(car)
+bienestar<- read_xlsx("salida_salud_sint.xlsx")
+bienestar
+```
+
+##Análisis descriptivo de género y comuna
+Luego veremos parámetros descriptivos de las variables de género, comuna y las variables de prosperidad y bienestar social. Primero veremos el % de hombres y mujeres y el % por comuna. Es posible crear una variablde de tipo factor que muestre a que número corresponde cada sexo.
+
+```{r}
+sexo<-factor(bienestar$GENERO, labels = c("H", "M"))
+table(sexo)
+
+```
+Podemos ver que hay 166 hombres y 340 mujeres. 
+Ahora realizaremos lo mismo para las comunas
+```{r}
+comuna<- factor(bienestar$COMU, labels = c("Concepcion", "Talcahuano", "San pedro", "Hualpén", "Chiguayante", "Coronel", "Lota", "Otra"))
+table(comuna)
+```
+Crearemos un data frame que agrupe las tres variables a usar para este analisis
+```{r}
+bienestarsocial<- data.frame(
+  Integracion= bienestar$ebs.1.m,
+  Aceptacion= bienestar$ebs.2.m,
+  Contribucion= bienestar$ebs.3.m,
+  Actualizacion= bienestar$ebs.4.m,
+  Coherencia= bienestar$ebs.5.m)
+bi<- data.frame(
+  Felicidad= bienestar$ebfl.m,
+  Prosperidad=bienestar$fs.m,
+  Bienestarsocial=bienestarsocial)
+```
+
+
+##Variables en relacion a comuna
+```{r paged.print=FALSE}
+describeBy(bi,comuna)
+```
+Se aprecia que las medias mas altas para todas las comunas estan en las variables de prosperidad y de contribucion social, y no se aprecia una diferencia grande en los niveles de las variables por comuna.
+
+##Variables en relacion a sexo
+Ahora veremos la relacion de estas variables con el sexo
+```{r paged.print=FALSE}
+describeBy(bi,sexo)
+```
+A partir del analisis descriptivo vemos que en las mujeres tienen mayor media en sus puntajes de Prosperidad y Contribucion social, lo cual ocurre de manera similar con los hombres quienes tambien tienen sus dos promedios mas altos en estas dos variables, y su promedio mas bajo en aceptacion social.
+
+##Analisis univariados
+
+###Felicidad
+Realizaremos ahora histogramas de cada variable. Primero realizaremos un analisis de la variable de felicidad
+```{r paged.print=FALSE}
+describe(bienestar$ebfl.m)
+var(bienestar$ebfl.m)
+```
+
+La variable de felicidad presenta una media de 3.8 y una varianza de 0.44
+```{r}
+hist(bienestar$ebfl.m, main = "Bienestar hedónico en estudiantes universitarios", xlab = "felicidad", col = "darkmagenta")
+```
+
+###Prosperidad
+Ahora veremos la variable de prosperidad. Realizaremos un histograma y analisis descriptivo
+```{r}
+hist(bienestar$fs.m, main = "Bienestar eudaimónico en estudiantes universitarios", xlab = "prosperidad", col = "blue")
+```
+```{r paged.print=FALSE}
+describe(bienestar$fs.m)
+var(bienestar$fs.m)
+```
+
+La media general para esta variable es de 4.11, donde el minmo es 1 y el maximo 5, y la varianza es de 0.30
+
+###Bienestar social
+Luego para la variable de bienestar social
+
+```{r}
+par(mfcol = c(2, 3))
+hist(bienestar$ebs.1.m, main = "Integración social", col = "red" )
+hist(bienestar$ebs.2.m, main = "Aceptación social", col = "blue" )
+hist(bienestar$ebs.3.m, main = "Contribución social", col = "magenta" )
+hist(bienestar$ebs.4.m, main = "Actualización social", col = "green" )
+hist(bienestar$ebs.5.m, main = "Coherencia social", col = "darkorange" )
+```
+
+Creamos un data frame que incluya las 5 dimensiones de bienestar social para realizar analisis descriptivo de la variable
+```{r}
+describe(bienestarsocial)
+```
+Luego de realizar un analsis descriptivo de la variable de bienestar social se aprecia que la dimension con mayor media es la de contribución social.
+
+##Analisis entre variables
+```{r}
+scatterplotMatrix(bienestarsocial)
+```
+se ven relaciones lineales entre todos los componentes de bienestar social. Para ver las relaciones entre tipos de bienestar, usaremos el data frame creado con las 3 variables 
+```{r}
+scatterplotMatrix(bi)
+```
+
+A partir del grafico se ve que la relacion entre las variables son en su mayoria relaciones lineales y positivas, sin embargo a simple vista pareciera ser que la recta en la relacion de Aceptacion social con Prosperidad y con Felicidad, es mas paralela a el eje x, por lo que realizaremos un grafico para cada una de estas relaciones para distinguir mejor la recta
+
+```{r}
+scatterplot(bi$Felicidad, bi$Bienestarsocial.Aceptacion)
+```
+Se confirma relacion lineal entre Aceptación social y felicidad
+
+```{r}
+scatterplot(bi$Prosperidad, bi$Bienestarsocial.Aceptacion)
+```
+A través del grafico se confirma relacion lineal entre aceptacion social y prosperidad
+
+##Analisis de conglomerados
+Primero, usamos el data frame que incluye las tres variables para hacer una variable con la que se hará el analisis por conglomerado
+```{r}
+acj<- agnes(bi)
+plot(acj)
+```
+A traves del grafico, se decide cortar en el 2, por lo que quedarian un total de 15 grupos.
+Probamos una division de 15 grupos
+```{r}
+gr.15<-cutree(acj,15)
+describeBy(bi, group=gr.15)
+```
+Realizando un análisis de conglomerados jerárquicos, y probando una división con 15 grupos se obtiene que: El primer grupo es el que se compone de mayor cantidad de casos con 434 y el menor se compone de un solo caso. 
+1.-El primer grupo se caracteriza por tener niveles similares en prosperidad y contribución social, y bajo nivel en aceptación social. 
+2.-El segundo grupo se podría caracterizar por tener medias que no alcanzan los 4 puntos en ninguna de las variables y hay niveles más altos en las variables de prosperidad y coherencia, y bajo niveles en la variable de aceptación social. 
+3.-Por otro lado, el tercer grupo compuesto solo por 8 casos, posee altos niveles en las variables de contribución y coherencia social y bajos niveles en aceptación. 
+4.-En el cuarto grupo compuesto por solo 3 casos,  solo la variable de actualización llega a los 4 puntos en promedio, y el menor nivel se encuentra en la variable de coherencia. 
+5.-El grupo n°5 compuesto solo por un caso, posee niveles sobre los 4 puntos en todas las variables excepto en felicidad. 
+6- El grupo n°6 compuesto también por un caso presenta un nivel alto con 5 puntos en contribución y coherencia y su nivel más bajo esta en actualización.
+7.-El grupo 7 compuesto por dos casos posee su nivel más alto en aceptación y más bajo en coherencia
+8.- El grupo 8 compuesto por 3 casos posee niveles medios en prosperidad y contribución y bajos en coherencia.
+A partir del grupo 9, son todos grupos compuestos por un caso, donde se destacan dos casos donde los niveles de felicidad y prosperidad están con un promedio de 1 punto. 
+###Resumen
+Por lo tanto, tenemos un grupo que incluye el 84% de los casos y que se caracteriza por tener niveles homogeneos en la mayoria de las variables que van entre los 3 y 4 puntos, con un nivel ligramente mayor en prosperidad que seria el bienestar eudaimónico, y contribucion social.
+luego tenemos otro grupo que incluye el 11,2% de los casos y que presentaria niveles similares en todas las variables con un promedio cercano a los 3 puntos. 
+Ambos grupos representan el 95% de los casos. 
+El resto de los grupos se componenen de entre 1 a 3 casos y sus niveles en las variables son heterogeneos, llegando a los extremos de 1 y 5 puntos en diferentes variables. 
+Se destacan casos donde se alcanzan los 5 puntos en las dimensiones de bienestar social, y casos donde se alcanza el puntaje minimo en las variables de felicidad y prosperidad. No hay niveles maximos en estas dos ultimas variables.
+Podemos probar cortando en 3, lo que haria un total de 6 grupos.
+
+```{r}
+gr.6<-cutree(acj,6)
+describeBy(bi, group=gr.6)
+```
+Realizando un analisis de conglomerados con 6 grupos, tenemos al igual que en el anterior, los dos primeros grupos continenen la mayoria de los casos (99%). El resto de los grupos se componen de 1 o 2 casos, presentado niveles heterogeneos en cada variable y llegando a los extremos de 1 o 5 puntos en algunas de estas.
+Las ventajas de 15 grupos se asocian a que se permiten visualizar lso casos mas extremos con puntajes las heterogeneos. Sin embargo, probando con 6 grupos pudimos ver que algunos de estos casos se pueden juntar. 
+Probemos con menos grupos
+```{r}
+gr.4<-cutree(acj,4)
+describeBy(bi, group=gr.4)
+```
+Si probamos con 4 grupos vemos que se integran los casos del segundo grupo de la prueba anterior, dentro del grupo grande con 513 casos y el resto de los grupos aparecen con 1 o 2 casos. 
+
+###Conclusion analisis por conglomerados jerarquicos
+Por lo tanto, nos quedaremos con 6 casos ya que propone un balance entre la presencia de grupos con muchos casos y puntajes homogeneos (y que a su vez se aprecien diferencias en cada grupo) y grupos que incluyan casos extremos. 
+
+##Analisis de componentes principales
+Antes de realizar este analisis, veremos la correlacion entre las variables, indicando si podriamos resumir la informacion en una cantidad menor de variables
+```{r}
+cor(bi)
+```
+Podemos ver que todas las correlaciones son positivas; sin embargo, hay algunas que son muy debiles, especialmente las correlacionadas con aceptacion social. Segun la definicion del concepto esta dimension se refiere a "confianza, aceptación y actitudes positivas hacia los otros, y aceptación de los aspectos positivos y negativos. 
+Las otras correlaciones tambien son debiles (no superan el 0.4), excepto las que involucran las variables de felicidad, prosperidad y las dimensiones de integracion y contribucion que van entre 0.5 y 0.6, con las dos primeras.
+Al ser todas positivas, realizamos el analisis de componentes principales.
+```{r}
+acp<- prcomp(bi, scale =TRUE)
+summary(acp)
+```
+Vemos que el primer componente, al ser debiles las correlaciones entre variables debiles solo explicaria el 47% de la varianza, y solo se llega al 95% de la varianza con 6 componentes. 
+Ahora veremos la relacion entre las variables y los componentes
+```{r}
+acp$rotation
+```
+Se ve que el componente 1 posee una relacion positiva pero debil con todas las variables. El componente 2 posee relacion negativa con 4 de las 6 variables pero una relacion moderada con aceptacion social.
+###Conclusion: al ser las relaciones tan debiles entre las variables no es razonable resumir las variables en menos componentes. 
+
+##Discusion de los resultados
+En base a los resultados obtenidos del analisis descriptivo y exploratorio podemos ver que los niveles de estas 3 variables de salud mental (bienestar hedónico, bienestar eudaimónico y bienestar social) son homogeneos en las comunas de la región del biobio y tanto em hombres como mujeres. 
+Estas tres variables aluden a actitudes y creencias que las perosnas tienen de si mismos (en base a las definiciones de las variables), sin embargo solo una de ellas (aceptacion social), alude a creencias y actitudes hacia otros, siendo esta la dimension y la variable con mas bajos niveles a nivel general y que a su vez estaria menos relacionada con el resto de las variables medidas. 
+
+##Reflexión
+De manera personal considero que en primer lugar estos analisis permiten tener una vision general de la temática que se esta investigando y podria permitir generar nuevas hipótesis con respecto a las variables medidas. Me asalta la duda de si estos analisis son factibles de realizar con multiples y variadas bases de datos,o si se pueden realizar si estas son adaptadas para estos casos, para lo cual considero que es muy importante conocer bien los analisis que se realizaran y siempre con un propósito en mente que tenga un beneficio para los analisis posteriores.
+Por otro lado, en cuanto a los resultados obtenidos, considero que la medicion exclusiva de estas variables positivas de salud mental no permiten obtener un panorama muy amplio de la salud mental en general de la poblacion, ya que las personas tienen a sobreestimar si nivel de bienestar consigo mismos. Sin embargo, me hace sentido que los niveles mas bajos estudieran en aceptacion social, lo cual es algo que vale la pena considerar con otros estudios y mediciones de otras variables asociadas a la interaccion entre personas. 
